@@ -124,22 +124,7 @@ See [Supported tags](#supported-tags)
 
 ### IB Gateway installation files
 
-Note that the [Dockerfile](https://github.com/UnusualAlpha/ib-gateway-docker/blob/master/Dockerfile)
-**does not download IB Gateway installer files from IB homepage but from the
-[github-pages](https://github.com/UnusualAlpha/ib-gateway-docker/tree/gh-pages/ibgateway-releases) of this project**.
-
-This is because it shall be possible to (re-)build the image, targeting a specific Gateway version,
-but IB does only provide download links for the `latest` or `stable` version (there is no 'old version' download archive).
-
-The installer files stored on [github-pages](https://github.com/UnusualAlpha/ib-gateway-docker/tree/gh-pages/ibgateway-releases) have been downloaded from
-IB homepage and renamed to reflect the version.
-
-If you want to download Gateway installer from IB homepage directly, or use your local installation file, change this line
-on [Dockerfile](https://github.com/UnusualAlpha/ib-gateway-docker/blob/master/Dockerfile)
-`RUN curl -sSL https://github.com/UnusualAlpha/ib-gateway-docker/raw/gh-pages/ibgateway-releases/ibgateway-${IB_GATEWAY_VERSION}-standalone-linux-x64.sh
---output ibgateway-${IB_GATEWAY_VERSION}-standalone-linux-x64.sh` to download (or copy) the file from the source you prefer.
-
-**Example:** change to `RUN curl -sSL https://download2.interactivebrokers.com/installers/ibgateway/stable-standalone/ibgateway-stable-standalone-linux-x64.sh --output ibgateway-${IB_GATEWAY_VERSION}-standalone-linux-x64.sh` for using current stable version from IB homepage.
+The [Dockerfile](Dockerfile) downloads the installer from Interactive Brokers using the `latest-standalone` URL. Provide the desired version via the `IB_GATEWAY_VERSION` build argument so that IBC knows which release to run. To use a local installer instead, place `ibgateway-${IB_GATEWAY_VERSION}-standalone-linux-x64.sh` in the build context and comment out the download commands.
 
 ## Customizing the image
 
@@ -175,8 +160,12 @@ additional layer of security (e.g. TLS/SSL or SSH tunnel) to protect the
 ### Credentials
 
 This image does not contain nor store any user credentials.
+Credentials can be supplied at runtime via environment variables or loaded from
+AWS Secrets Manager/SSM.  Set `AWS_REGION` and either `AWS_SECRET_NAME` or
+`AWS_SSM_PARAMETER` so that the container retrieves a JSON object containing
+`username` and `password` before launching IB Gateway.  This avoids storing
+secrets in the Docker image. The provided Terraform module can create an SSM
+parameter containing these credentials from values specified in `terraform.tfvars`.
 
-They are provided as environment variable during the container startup and
-the host is responsible to properly protect it (e.g. use
-[Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables) 
-or similar).
+### Terraform deployment
+See the `terraform` directory for an example configuration that provisions an EC2 instance with Docker installed. The instance automatically starts the container using user data, creates an SSM parameter with your TWS credentials, and restricts API ports to the VPC. Copy `terraform/terraform.tfvars.example` to `terraform.tfvars` and fill in your values before running `terraform apply`.
